@@ -1,2 +1,4 @@
 /venv
+/calculator
 .env
+__pycache__
