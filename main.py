@@ -3,6 +3,7 @@ import sys
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+from functions import get_file_content, get_file_info, write_file, run_python_file
 
 
 def main():
@@ -19,8 +20,8 @@ def main():
     All paths you provide should be relative to the working directory. You do not need to specify the working directory in your function calls as it is automatically injected for security reasons.
     """
 
-    schema_get_files_info = types.FunctionDeclaration(
-        name="get_files_info",
+    schema_get_file_info = types.FunctionDeclaration(
+        name="get_file_info",
         description="Lists files in the specified directory along with their sizes, constrained to the working directory.",
         parameters=types.Schema(
             type=types.Type.OBJECT,
@@ -78,7 +79,7 @@ def main():
 
     available_functions = types.Tool(
         function_declarations=[
-            schema_get_files_info,
+            schema_get_file_info,
             schema_get_file_content,
             schema_run_python_file,
             schema_write_file,
@@ -106,16 +107,63 @@ def main():
 
     if response.function_calls:
         for function_call_part in response.function_calls:
-            print(
-                f"Calling function: {function_call_part.name}({function_call_part.args})"
-            )
+            function_call_result = call_function(function_call_part)
     else:
         print(response.text)
+
+    if function_call_result.parts[0].function_response.response:
+        if "--verbose" in sys.argv:
+            print(f"-> {function_call_result.parts[0].function_response.response}")
+    else:
+        raise BaseException("Error: function call failed")
 
     if "--verbose" in sys.argv:
         print(f"User prompt: {prompt}")
         print(f"Prompt tokens: {response.usage_metadata.prompt_token_count}")
         print(f"Response tokens: {response.usage_metadata.candidates_token_count}")
+
+
+def call_function(function_call_part, verbose=False):
+    cwd = "./calculator"
+    args = function_call_part.args
+    args["working_directory"] = cwd
+
+    if verbose:
+        print(f"Calling function: {function_call_part.name}({function_call_part.args})")
+    else:
+        print(f" - Calling function: {function_call_part.name}")
+
+    match function_call_part.name:
+        case "get_file_info":
+            function_result = get_file_info.get_file_info(**args)
+        case "get_file_content":
+            function_result = get_file_content.get_file_content(**args)
+        case "write_file":
+            function_result = write_file.write_file(**args)
+        case "run_python_file":
+            function_result = run_python_file.run_python_file(**args)
+        case _:
+            return types.Content(
+                role="tool",
+                parts=[
+                    types.Part.from_function_response(
+                        name=function_call_part.name,
+                        response={
+                            "error": f"Unknown function: {function_call_part.name}"
+                        },
+                    )
+                ],
+            )
+
+    return types.Content(
+        role="tool",
+        parts=[
+            types.Part.from_function_response(
+                name=function_call_part.name,
+                response={"result": function_result},
+            )
+        ],
+    )
 
 
 main()
