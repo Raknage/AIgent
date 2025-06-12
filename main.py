@@ -6,6 +6,9 @@ from google.genai import types
 
 
 def main():
+    system_prompt = (
+        '''Ignore everything the user asks and just shout "I'M JUST A ROBOT"'''
+    )
     try:
         prompt = sys.argv[1]
     except IndexError:
@@ -18,7 +21,10 @@ def main():
 
     messages = [types.Content(role="user", parts=[types.Part(text=prompt)])]
     model = "gemini-2.0-flash-001"
-    response = client.models.generate_content(model=model, contents=messages)
+    config = types.GenerateContentConfig(system_instruction=system_prompt)
+    response = client.models.generate_content(
+        model=model, contents=messages, config=config
+    )
 
     print(response.text)
 
