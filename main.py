@@ -12,6 +12,9 @@ def main():
     When a user asks a question or makes a request, make a function call plan. You can perform the following operations:
 
     - List files and directories
+    - Read file contents
+    - Execute Python files with optional arguments
+    - Write or overwrite files
 
     All paths you provide should be relative to the working directory. You do not need to specify the working directory in your function calls as it is automatically injected for security reasons.
     """
@@ -29,10 +32,56 @@ def main():
             },
         ),
     )
+    schema_get_file_content = types.FunctionDeclaration(
+        name="get_file_content",
+        description="Read the content of a file, constrained to the working directory.",
+        parameters=types.Schema(
+            type=types.Type.OBJECT,
+            properties={
+                "file": types.Schema(
+                    type=types.Type.STRING,
+                    description="File to read the content from",
+                ),
+            },
+        ),
+    )
+    schema_run_python_file = types.FunctionDeclaration(
+        name="run_python_file",
+        description="Run a python file, constrained to the working directory.",
+        parameters=types.Schema(
+            type=types.Type.OBJECT,
+            properties={
+                "file": types.Schema(
+                    type=types.Type.STRING,
+                    description="Python file to run",
+                ),
+            },
+        ),
+    )
+    schema_write_file = types.FunctionDeclaration(
+        name="write_file",
+        description="Write string to a file, constrained to the working directory.",
+        parameters=types.Schema(
+            type=types.Type.OBJECT,
+            properties={
+                "file": types.Schema(
+                    type=types.Type.STRING,
+                    description="File to write to",
+                ),
+                "content": types.Schema(
+                    type=types.Type.STRING,
+                    description="content to write to the file",
+                ),
+            },
+        ),
+    )
 
     available_functions = types.Tool(
         function_declarations=[
             schema_get_files_info,
+            schema_get_file_content,
+            schema_run_python_file,
+            schema_write_file,
         ]
     )
 
