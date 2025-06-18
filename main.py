@@ -107,7 +107,7 @@ def main():
     )
 
     if response.function_calls:
-        for function_call_part in response.function_calls[0]:
+        for function_call_part in response.function_calls:
             function_call_result = call_function(function_call_part)
             if function_call_result.parts[0].function_response.response:
                 if "--verbose" in sys.argv:
@@ -127,7 +127,7 @@ def main():
 
 def call_function(function_call_part, verbose=False):
     cwd = "./calculator"
-    args = function_call_part.function_call.args
+    args = function_call_part.args
     args["working_directory"] = cwd
 
     if verbose:
