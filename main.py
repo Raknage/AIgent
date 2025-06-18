@@ -101,21 +101,23 @@ def main():
     config = types.GenerateContentConfig(
         system_instruction=system_prompt, tools=[available_functions]
     )
+
     response = client.models.generate_content(
         model=model, contents=messages, config=config
     )
 
     if response.function_calls:
-        for function_call_part in response.function_calls:
+        for function_call_part in response.function_calls[0]:
             function_call_result = call_function(function_call_part)
+            if function_call_result.parts[0].function_response.response:
+                if "--verbose" in sys.argv:
+                    print(
+                        f"-> {function_call_result.parts[0].function_response.response}"
+                    )
+            else:
+                raise BaseException("Error: function call failed")
     else:
         print(response.text)
-
-    if function_call_result.parts[0].function_response.response:
-        if "--verbose" in sys.argv:
-            print(f"-> {function_call_result.parts[0].function_response.response}")
-    else:
-        raise BaseException("Error: function call failed")
 
     if "--verbose" in sys.argv:
         print(f"User prompt: {prompt}")
@@ -125,11 +127,11 @@ def main():
 
 def call_function(function_call_part, verbose=False):
     cwd = "./calculator"
-    args = function_call_part.args
+    args = function_call_part.function_call.args
     args["working_directory"] = cwd
 
     if verbose:
-        print(f"Calling function: {function_call_part.name}({function_call_part.args})")
+        print(f"Calling function: {function_call_part.name}({args})")
     else:
         print(f" - Calling function: {function_call_part.name}")
 
