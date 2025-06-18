@@ -90,6 +90,10 @@ def main():
 
     try:
         prompt = sys.argv[1]
+        if "--verbose" in sys.argv:
+            verbose = True
+        else:
+            verbose = False
     except IndexError:
         print("Usage: main.py [prompt]")
         exit(1)
@@ -111,22 +115,21 @@ def main():
         for candidate in response.candidates:
             messages.append(candidate.content)
 
+        if verbose and candidate.content.parts[0].text:
+            print(candidate.content.parts[0].text)
+
         if response.function_calls:
-            try:
-                for function_call_part in response.function_calls:
-                    function_call_result = call_function(function_call_part)
-                    messages.append(function_call_result)
-                    if function_call_result.parts[0].function_response.response:
-                        if "--verbose" in sys.argv:
-                            print(
-                                f"-> {function_call_result.parts[0].function_response.response}"
-                            )
-                    else:
-                        raise BaseException("Error: function call failed")
-            except (
-                Exception
-            ) as e:  # instead of raising the exception, you can let the model handle it
-                messages.append(f"error: {str(e)}")
+            for function_call_part in response.function_calls:
+                function_call_result = call_function(function_call_part, verbose)
+                messages.append(function_call_result)
+
+                if function_call_result.parts[0].function_response.response:
+                    if verbose:
+                        print(
+                            f"-> {function_call_result.parts[0].function_response.response}"
+                        )
+                else:
+                    raise BaseException("Error: function call failed")
 
         elif i >= 20:
             print(response.text, f"iteration: {i}")
@@ -135,14 +138,14 @@ def main():
             print(response.text)
             break
 
-    if "--verbose" in sys.argv:
+    write_file.write_file(".", "messages.py", "".join(str(messages)))
+    if verbose:
         print(f"User prompt: {prompt}")
         print(f"Prompt tokens: {response.usage_metadata.prompt_token_count}")
         print(f"Response tokens: {response.usage_metadata.candidates_token_count}")
-        write_file.write_file(".", "messages.py", "".join(str(messages)))
 
 
-def call_function(function_call_part, verbose=True):
+def call_function(function_call_part, verbose=False):
     cwd = "./calculator"
     args = function_call_part.args
     args["working_directory"] = cwd
