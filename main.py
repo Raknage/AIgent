@@ -1,6 +1,5 @@
 import os
 import sys
-import json
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
@@ -18,7 +17,7 @@ def main():
     - Execute Python files with optional arguments
     - Write or overwrite files
 
-    You have only 20 iterations to accomplish this task.
+    You have only 20 iterations to accomplish this task unless told.
     All paths you provide should be relative to the working directory. Do not specify the working directory in your function calls as it is automatically injected for security reasons.
     """
 
@@ -146,7 +145,7 @@ def main():
 
 
 def call_function(function_call_part, verbose=False):
-    cwd = "./calculator"
+    cwd = "./"
     args = function_call_part.args
     args["working_directory"] = cwd
 
