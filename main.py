@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
@@ -17,18 +18,19 @@ def main():
     - Execute Python files with optional arguments
     - Write or overwrite files
 
-    All paths you provide should be relative to the working directory. You do not need to specify the working directory in your function calls as it is automatically injected for security reasons.
+    You have only 20 iterations to accomplish this task.
+    All paths you provide should be relative to the working directory. Do not specify the working directory in your function calls as it is automatically injected for security reasons.
     """
 
     schema_get_file_info = types.FunctionDeclaration(
         name="get_file_info",
-        description="Lists files in the specified directory along with their sizes, constrained to the working directory.",
+        description="Lists files in the specified directory along with their sizes.",
         parameters=types.Schema(
             type=types.Type.OBJECT,
             properties={
                 "directory": types.Schema(
                     type=types.Type.STRING,
-                    description="The directory to list files from, relative to the working directory. If not provided, lists files in the working directory itself.",
+                    description="The directory to list files from. Provide empty string to list files in the working directory itself.",
                 ),
             },
         ),
@@ -39,9 +41,9 @@ def main():
         parameters=types.Schema(
             type=types.Type.OBJECT,
             properties={
-                "file": types.Schema(
+                "file_path": types.Schema(
                     type=types.Type.STRING,
-                    description="File to read the content from",
+                    description="Path to the file to read the content from",
                 ),
             },
         ),
@@ -102,30 +104,45 @@ def main():
         system_instruction=system_prompt, tools=[available_functions]
     )
 
-    response = client.models.generate_content(
-        model=model, contents=messages, config=config
-    )
+    for i in range(20):
+        response = client.models.generate_content(
+            model=model, contents=messages, config=config
+        )
+        for candidate in response.candidates:
+            messages.append(candidate.content)
 
-    if response.function_calls:
-        for function_call_part in response.function_calls:
-            function_call_result = call_function(function_call_part)
-            if function_call_result.parts[0].function_response.response:
-                if "--verbose" in sys.argv:
-                    print(
-                        f"-> {function_call_result.parts[0].function_response.response}"
-                    )
-            else:
-                raise BaseException("Error: function call failed")
-    else:
-        print(response.text)
+        if response.function_calls:
+            try:
+                for function_call_part in response.function_calls:
+                    function_call_result = call_function(function_call_part)
+                    messages.append(function_call_result)
+                    if function_call_result.parts[0].function_response.response:
+                        if "--verbose" in sys.argv:
+                            print(
+                                f"-> {function_call_result.parts[0].function_response.response}"
+                            )
+                    else:
+                        raise BaseException("Error: function call failed")
+            except (
+                Exception
+            ) as e:  # instead of raising the exception, you can let the model handle it
+                messages.append(f"error: {str(e)}")
+
+        elif i >= 20:
+            print(response.text, f"iteration: {i}")
+            break
+        else:
+            print(response.text)
+            break
 
     if "--verbose" in sys.argv:
         print(f"User prompt: {prompt}")
         print(f"Prompt tokens: {response.usage_metadata.prompt_token_count}")
         print(f"Response tokens: {response.usage_metadata.candidates_token_count}")
+        write_file.write_file(".", "messages.py", "".join(str(messages)))
 
 
-def call_function(function_call_part, verbose=False):
+def call_function(function_call_part, verbose=True):
     cwd = "./calculator"
     args = function_call_part.args
     args["working_directory"] = cwd

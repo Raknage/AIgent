@@ -1,4 +1,6 @@
 /venv
 /calculator
+/.vscode
 .env
 __pycache__
+messages.py
